@@ -1,4 +1,7 @@
-# whatcms
+# WhatCms
+只做原理上的实现，如需工具及性能化请自行修改
+
+指纹数据来源[https://0x727.github.io/FingerprintHub/web_fingerprint_v3.json](https://0x727.github.io/FingerprintHub/web_fingerprint_v3.json)
 
 ```bash
 __        ___           _    ____
