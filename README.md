@@ -3,7 +3,7 @@
 
 指纹数据来源 : [https://0x727.github.io/FingerprintHub/web_fingerprint_v3.json](https://0x727.github.io/FingerprintHub/web_fingerprint_v3.json)
 
-如果我有幸能遇到您，请您给我点个 star 谢谢您
+如果我有幸能遇到您，请您给我点个 star 蟹蟹泥
 
 ```bash
 __        ___           _    ____
