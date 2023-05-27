@@ -1,13 +1,19 @@
+/**
+@author       MouMeng <iamoumeng@aliyun.com>
+@datetime     2023/5/23 9:07
+*/
+
 package main
 
 import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -25,7 +31,7 @@ type FingerItem struct {
 }
 
 var httpClient = &http.Client{
-	Timeout: 5 * time.Second,
+	Timeout: 5 * time.Second, // 超时时间
 	Transport: &http.Transport{
 		MaxIdleConns:       100,              // 最大空闲连接数
 		IdleConnTimeout:    90 * time.Second, // 空闲连接超时时间
@@ -35,31 +41,31 @@ var httpClient = &http.Client{
 
 func handleError(err error, msg string) {
 	if err != nil {
-		fmt.Printf("%s: %v\n", msg, err)
-		panic(err)
+		t := time.Now()
+		fmt.Printf("[%d-%d-%d %d:%d:%d]:"+"%s %v\n", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Minute(), msg, err)
 	}
 }
 
 func main() {
 
 	fingerItems := loadFingerItems()
-
+	fmt.Println("__        ___           _    ____               \n\\ \\      / / |__   __ _| |_ / ___|_ __ ___  ___ \n \\ \\ /\\ / /| '_ \\ / _` | __| |   | '_ ` _ \\/ __|\n  \\ V  V / | | | | (_| | |_| |___| | | | | \\__ \\\n   \\_/\\_/  |_| |_|\\__,_|\\__|\\____|_| |_| |_|___/\n_________________________________________________")
 	url := "https://www.lnsec.cn/"
 	cmsType := identifyCMS(url, fingerItems)
 	if cmsType != "" {
 		fmt.Printf(cmsType)
 	} else {
-		fmt.Println("无法识别")
+		handleError(errors.New(" "), "无法识别目标站点CMS")
 	}
 }
 
 func loadFingerItems() []FingerItem {
-	content, err := ioutil.ReadFile("res/finger.json")
-	handleError(err, "Failed to read finger.json")
+	content, err := os.ReadFile("./res/finger.json")
+	handleError(err, "无法读取配置文件 finger.json")
 
 	var fingerItems []FingerItem
 	err = json.Unmarshal(content, &fingerItems)
-	handleError(err, "Failed to unmarshal fingerItems")
+	handleError(err, "无法解析配置文件 finger.json")
 
 	return fingerItems
 }
@@ -68,16 +74,20 @@ func identifyCMS(url string, fingerItems []FingerItem) string {
 
 	resp, err := httpClient.Get(url)
 	tempResp := resp
-	handleError(err, "Failed to execute http.Get")
-	defer resp.Body.Close()
+	if err != nil {
+		handleError(err, "无法连接到目标站点")
+		return ""
+	}
 
 	respIco, err := httpClient.Get(url + "/favicon.ico")
-	handleError(err, "Failed to execute http.Get")
-	defer respIco.Body.Close()
+	if err != nil {
+		handleError(err, "无法连接到目标站点")
+		return ""
+	}
 
 	hashString := ""
-	if respIco.StatusCode == 200 {
-		bytes, err := io.ReadAll(respIco.Body)
+	if err == nil && resp.StatusCode == 200 {
+		bytes, _ := io.ReadAll(respIco.Body)
 		handleError(err, "Failed to execute io")
 		hash := md5.Sum(bytes)
 		hashString = hex.EncodeToString(hash[:])
@@ -98,26 +108,25 @@ func identifyCMS(url string, fingerItems []FingerItem) string {
 				req.Header.Add(key, value)
 			}
 			resp, err = httpClient.Do(req)
-			handleError(err, "Failed to execute http.Get")
-			resp.Body.Close()
+			handleError(err, "请求失败 :"+item.Path)
 		} else {
 			resp = tempResp
 		}
 
 		if len(item.Headers) > 0 {
-			if !headersMatch(resp.Header, item.Headers) {
+			if !HeadersMatch(resp.Header, item.Headers) {
 				continue
 			}
 		}
 
 		if len(item.Keyword) > 0 {
-			if !keywordsMatch(string(body), item.Keyword) {
+			if !KeywordsMatch(string(body), item.Keyword) {
 				continue
 			}
 		}
 
 		if len(item.FaviconHash) > 0 {
-			if !faviconHashMatch(hashString, item.FaviconHash) {
+			if !FaviconHashMatch(hashString, item.FaviconHash) {
 				continue
 			}
 		}
@@ -126,38 +135,4 @@ func identifyCMS(url string, fingerItems []FingerItem) string {
 	}
 
 	return ""
-}
-
-func headersMatch(headers http.Header, expected map[string]string) bool {
-	for k, v := range expected {
-		value := headers.Get(k)
-		if value != "" && value == v {
-			continue
-		}
-		return false
-	}
-	return true
-}
-
-func keywordsMatch(body string, keywords []string) bool {
-	for _, keyword := range keywords {
-		if strings.Contains(body, keyword) {
-			continue
-		}
-		return false
-	}
-	return true
-}
-
-func faviconHashMatch(hashString string, expected []string) bool {
-	if hashString == "" {
-		return false
-	}
-	for _, hash := range expected {
-		if hashString == hash {
-			continue
-		}
-		return false
-	}
-	return true
 }
