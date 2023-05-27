@@ -39,33 +39,27 @@ var httpClient = &http.Client{
 	},
 }
 
-func handleError(err error, msg string) {
-	if err != nil {
-		t := time.Now()
-		fmt.Printf("[%d-%d-%d %d:%d:%d]:"+"%s %v\n", t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Minute(), msg, err)
-	}
-}
-
 func main() {
-
-	fingerItems := loadFingerItems()
 	fmt.Println("__        ___           _    ____               \n\\ \\      / / |__   __ _| |_ / ___|_ __ ___  ___ \n \\ \\ /\\ / /| '_ \\ / _` | __| |   | '_ ` _ \\/ __|\n  \\ V  V / | | | | (_| | |_| |___| | | | | \\__ \\\n   \\_/\\_/  |_| |_|\\__,_|\\__|\\____|_| |_| |_|___/\n_________________________________________________")
-	url := "https://www.lnsec.cn/"
+	HandleLog("正在初始化配置文件")
+	fingerItems := loadFingerItems()
+	HandleLog("正在识别目标站点CMS")
+	url := "https://www.lhyblog.cn/"
 	cmsType := identifyCMS(url, fingerItems)
 	if cmsType != "" {
-		fmt.Printf(cmsType)
+		HandleLog("识别完成 CMS: " + cmsType)
 	} else {
-		handleError(errors.New(" "), "无法识别目标站点CMS")
+		HandleError(errors.New(""), "无法识别目标站点CMS")
 	}
 }
 
 func loadFingerItems() []FingerItem {
 	content, err := os.ReadFile("./res/finger.json")
-	handleError(err, "无法读取配置文件 finger.json")
+	HandleError(err, "无法读取配置文件 finger.json")
 
 	var fingerItems []FingerItem
 	err = json.Unmarshal(content, &fingerItems)
-	handleError(err, "无法解析配置文件 finger.json")
+	HandleError(err, "无法解析配置文件 finger.json")
 
 	return fingerItems
 }
@@ -75,26 +69,25 @@ func identifyCMS(url string, fingerItems []FingerItem) string {
 	resp, err := httpClient.Get(url)
 	tempResp := resp
 	if err != nil {
-		handleError(err, "无法连接到目标站点")
+		HandleError(err, "无法连接到目标站点")
 		return ""
 	}
 
 	respIco, err := httpClient.Get(url + "/favicon.ico")
 	if err != nil {
-		handleError(err, "无法连接到目标站点")
+		HandleError(err, "无法连接到目标站点")
 		return ""
 	}
 
 	hashString := ""
 	if err == nil && resp.StatusCode == 200 {
 		bytes, _ := io.ReadAll(respIco.Body)
-		handleError(err, "Failed to execute io")
 		hash := md5.Sum(bytes)
 		hashString = hex.EncodeToString(hash[:])
 	}
 
 	body, err := io.ReadAll(resp.Body)
-	handleError(err, "Failed to read response body")
+	HandleError(err, "无法读取目标站点源代码")
 
 	for _, item := range fingerItems {
 
@@ -108,7 +101,7 @@ func identifyCMS(url string, fingerItems []FingerItem) string {
 				req.Header.Add(key, value)
 			}
 			resp, err = httpClient.Do(req)
-			handleError(err, "请求失败 :"+item.Path)
+			HandleError(err, "请求失败 :"+item.Path)
 		} else {
 			resp = tempResp
 		}
