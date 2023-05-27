@@ -44,7 +44,7 @@ func main() {
 	HandleLog("正在初始化配置文件")
 	fingerItems := loadFingerItems()
 	HandleLog("正在识别目标站点CMS")
-	url := "https://www.lhyblog.cn/"
+	url := "https://www.lnsec.cn/"
 	cmsType := identifyCMS(url, fingerItems)
 	if cmsType != "" {
 		HandleLog("识别完成 CMS: " + cmsType)
